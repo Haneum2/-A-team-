@@ -9,7 +9,7 @@
 	<link rel="stylesheet" href="${pageContext.request.contextPath}/resources/css/style.css">
 </head>
 <body class="login-page">
-	<main class="login-box">
+	<main class="login-box wide">
 		<h1>회원가입</h1>
 
 		<c:if test="${not empty error}">
@@ -27,6 +27,10 @@
 
 			<label for="passwordConfirm">비밀번호 확인</label>
 			<input type="password" id="passwordConfirm" name="passwordConfirm" required>
+
+			<h2 class="survey-title">투자성향 진단</h2>
+			<p class="survey-desc">모든 문항에 답해야 가입할 수 있습니다.</p>
+			<%@ include file="survey-fields.jspf" %>
 
 			<button type="submit">가입하기</button>
 		</form>

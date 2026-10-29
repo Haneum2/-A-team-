@@ -1,0 +1,13 @@
+<%-- 투자성향 설문 문항. register.jsp 와 survey.jsp 에서 공유 (c 태그 라이브러리 필요) --%>
+<c:forEach var="q" items="${questions}" varStatus="st">
+	<fieldset class="question">
+		<legend>${st.count}. ${q.text}</legend>
+		<c:forEach var="opt" items="${q.options}">
+			<label>
+				<input type="radio" name="${q.id}" value="${opt.type}" required
+					${param[q.id] == opt.type ? 'checked' : ''}>
+				${opt.text}
+			</label>
+		</c:forEach>
+	</fieldset>
+</c:forEach>
