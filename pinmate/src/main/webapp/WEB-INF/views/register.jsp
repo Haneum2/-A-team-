@@ -28,11 +28,7 @@
 			<label for="passwordConfirm">비밀번호 확인</label>
 			<input type="password" id="passwordConfirm" name="passwordConfirm" required>
 
-			<h2 class="survey-title">투자성향 진단</h2>
-			<p class="survey-desc">모든 문항에 답해야 가입할 수 있습니다.</p>
-			<%@ include file="survey-fields.jspf" %>
-
-			<button type="submit">가입하기</button>
+			<button type="submit">가입하고 투자성향 진단하기</button>
 		</form>
 
 		<p class="link"><a href="${pageContext.request.contextPath}/login">로그인으로 돌아가기</a></p>

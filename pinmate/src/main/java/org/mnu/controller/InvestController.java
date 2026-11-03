@@ -55,6 +55,11 @@ public class InvestController {
 			return "redirect:/login";
 		}
 		model.addAttribute("questions", Survey.getQuestions());
+		try {
+			model.addAttribute("firstTime", investDao.findByUser((String) session.getAttribute("loginUser")).isEmpty());
+		} catch (DataAccessException e) {
+			logger.error("Load invest result error", e);
+		}
 		return "survey";
 	}
 
@@ -65,6 +70,14 @@ public class InvestController {
 			return "redirect:/login";
 		}
 		model.addAttribute("questions", Survey.getQuestions());
+
+		boolean firstTime = false;
+		try {
+			firstTime = investDao.findByUser(userId).isEmpty();
+		} catch (DataAccessException e) {
+			logger.error("Load invest result error", e);
+		}
+		model.addAttribute("firstTime", firstTime);
 
 		Map<InvestType, Integer> scores = Survey.score(request);
 		if (scores == null) {
@@ -78,8 +91,9 @@ public class InvestController {
 			model.addAttribute("error", LoginController.DB_ERROR_MSG);
 			return "survey";
 		}
-		logger.info("Re-diagnosis saved: {}", userId);
-		return "redirect:/mypage?diagnosed";
+		logger.info("Diagnosis saved: {} (first={})", userId, firstTime);
+		// 가입 직후 첫 진단이면 메인 홈으로, 재진단이면 마이페이지로 이동한다.
+		return firstTime ? "redirect:/" : "redirect:/mypage?diagnosed";
 	}
 
 }

@@ -1,15 +1,10 @@
 package org.mnu.controller;
 
-import java.util.Map;
 import java.util.regex.Pattern;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
-import org.mnu.dao.InvestDao;
 import org.mnu.dao.MemberDao;
-import org.mnu.invest.InvestType;
-import org.mnu.invest.Survey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,7 +12,6 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
-import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -41,13 +35,7 @@ public class LoginController {
 	private MemberDao memberDao;
 
 	@Autowired
-	private InvestDao investDao;
-
-	@Autowired
 	private PasswordEncoder passwordEncoder;
-
-	@Autowired
-	private TransactionTemplate transactionTemplate;
 
 	@RequestMapping(value = "/login", method = RequestMethod.GET)
 	public String loginForm() {
@@ -83,8 +71,7 @@ public class LoginController {
 	}
 
 	@RequestMapping(value = "/register", method = RequestMethod.GET)
-	public String registerForm(Model model) {
-		model.addAttribute("questions", Survey.getQuestions());
+	public String registerForm() {
 		return "register";
 	}
 
@@ -92,7 +79,7 @@ public class LoginController {
 	public String register(@RequestParam("userId") String userId,
 			@RequestParam("password") String password,
 			@RequestParam("passwordConfirm") String passwordConfirm,
-			HttpServletRequest request, Model model) {
+			HttpSession session, Model model) {
 
 		String id = userId.trim();
 		String error = null;
@@ -102,18 +89,9 @@ public class LoginController {
 			error = PW_RULE_MSG;
 		} else if (!password.equals(passwordConfirm)) {
 			error = "비밀번호 확인이 일치하지 않습니다.";
-		} else if (Survey.score(request) == null) {
-			error = SURVEY_INCOMPLETE_MSG;
 		} else {
-			final Map<InvestType, Integer> scores = Survey.score(request);
-			final String hash = passwordEncoder.encode(password);
 			try {
-				// 회원 정보와 진단 결과는 함께 저장되거나 함께 취소된다.
-				transactionTemplate.execute(status -> {
-					memberDao.insert(id, hash);
-					investDao.insert(id, Survey.decide(scores), scores);
-					return null;
-				});
+				memberDao.insert(id, passwordEncoder.encode(password));
 			} catch (DuplicateKeyException e) {
 				error = "이미 사용 중인 아이디입니다.";
 			} catch (DataAccessException e) {
@@ -124,12 +102,13 @@ public class LoginController {
 
 		if (error != null) {
 			model.addAttribute("error", error);
-			model.addAttribute("questions", Survey.getQuestions());
 			return "register";
 		}
 
 		logger.info("Sign-up success: {}", id);
-		return "redirect:/login?registered";
+		// 가입 직후 자동 로그인하고 투자성향 진단으로 이동한다.
+		session.setAttribute("loginUser", id);
+		return "redirect:/survey";
 	}
 
 	@RequestMapping(value = "/logout", method = RequestMethod.GET)

@@ -20,7 +20,10 @@
 
 	<main class="container">
 		<div class="card login-box" style="width:auto">
-			<h2>투자성향 재진단</h2>
+			<h2>${firstTime ? '투자성향 진단' : '투자성향 재진단'}</h2>
+			<c:if test="${firstTime}">
+				<p class="survey-desc">가입이 완료되었습니다. 투자성향을 진단하면 메인 화면으로 이동합니다.</p>
+			</c:if>
 
 			<c:if test="${not empty error}">
 				<p class="error">${error}</p>
