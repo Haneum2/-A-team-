@@ -4,12 +4,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.xml.sax.Attributes;
 import org.xml.sax.helpers.DefaultHandler;
 
-import javax.annotation.PostConstruct;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 import java.io.BufferedReader;
@@ -28,7 +28,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 @Service
-public class DisclosureService {
+public class DisclosureService implements InitializingBean {
 
     private static final Logger logger = LoggerFactory.getLogger(DisclosureService.class);
 
@@ -50,19 +50,17 @@ public class DisclosureService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @PostConstruct
-    public void init() {
+    @Override
+    public void afterPropertiesSet() {
         if (!isApiKeyConfigured()) {
             logger.warn("DART API 키가 설정되지 않았습니다. api.properties에 dart.api.key를 입력하세요.");
             return;
         }
         loadCorpCodes();
-        ScheduledExecutorService sched = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "dart-corpcode-refresh");
-            t.setDaemon(true);
-            return t;
-        });
-        sched.scheduleAtFixedDelay(this::loadCorpCodes, 24, 24, TimeUnit.HOURS);
+        ScheduledExecutorService sched = Executors.newSingleThreadScheduledExecutor();
+        sched.scheduleWithFixedDelay(new Runnable() {
+            @Override public void run() { loadCorpCodes(); }
+        }, 24L, 24L, TimeUnit.HOURS);
     }
 
     public boolean isApiKeyConfigured() {
@@ -71,13 +69,14 @@ public class DisclosureService {
 
     // ---- corpCode 관리 ----
 
+    @SuppressWarnings("deprecation")
     private void loadCorpCodes() {
         logger.info("DART corpCode.xml 로딩 시작");
         try {
             URL url = new URL(CORP_CODE_URL + apiKey.trim());
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setConnectTimeout(HTTP_TIMEOUT);
-            conn.setReadTimeout(30_000); // zip은 크므로 30s
+            conn.setReadTimeout(30_000);
             conn.connect();
 
             if (conn.getResponseCode() != 200) {
@@ -91,7 +90,8 @@ public class DisclosureService {
             try (ZipInputStream zis = new ZipInputStream(conn.getInputStream())) {
                 ZipEntry entry;
                 while ((entry = zis.getNextEntry()) != null) {
-                    if (entry.getName().endsWith("CORPCODE.xml") || entry.getName().endsWith("corpCode.xml")) {
+                    String name = entry.getName().toUpperCase();
+                    if (name.endsWith("CORPCODE.XML")) {
                         parseCorpCodeXml(zis, newStockMap, newInfoMap);
                         break;
                     }
@@ -117,7 +117,7 @@ public class DisclosureService {
         SAXParser parser = factory.newSAXParser();
         parser.parse(is, new DefaultHandler() {
             private String corpCode, corpName, stockCode;
-            private StringBuilder buf = new StringBuilder();
+            private final StringBuilder buf = new StringBuilder();
 
             @Override public void startElement(String u, String l, String qName, Attributes a) {
                 buf.setLength(0);
@@ -127,18 +127,16 @@ public class DisclosureService {
             }
             @Override public void endElement(String u, String l, String qName) {
                 String val = buf.toString().trim();
-                switch (qName) {
-                    case "corp_code":  corpCode  = val; break;
-                    case "corp_name":  corpName  = val; break;
-                    case "stock_code": stockCode = val; break;
-                    case "list":
-                        if (corpCode != null && corpName != null
-                                && stockCode != null && !stockCode.isEmpty()) {
-                            stockMap.put(stockCode, corpCode);
-                            infoMap.put(corpCode, new CorpInfo(corpCode, corpName, stockCode));
-                        }
-                        corpCode = corpName = stockCode = null;
-                        break;
+                if ("corp_code".equals(qName))  { corpCode  = val; }
+                else if ("corp_name".equals(qName))  { corpName  = val; }
+                else if ("stock_code".equals(qName)) { stockCode = val; }
+                else if ("list".equals(qName)) {
+                    if (corpCode != null && corpName != null
+                            && stockCode != null && !stockCode.isEmpty()) {
+                        stockMap.put(stockCode, corpCode);
+                        infoMap.put(corpCode, new CorpInfo(corpCode, corpName, stockCode));
+                    }
+                    corpCode = corpName = stockCode = null;
                 }
             }
         });
@@ -168,7 +166,7 @@ public class DisclosureService {
             if (cached != null) {
                 return new DisclosureResult(cached.items, cached.fetchTime, true);
             }
-            return new DisclosureResult(Collections.emptyList(), null, true);
+            return new DisclosureResult(Collections.<DisclosureItem>emptyList(), null, true);
         }
 
         try {
@@ -181,7 +179,7 @@ public class DisclosureService {
             if (cached != null) {
                 return new DisclosureResult(cached.items, cached.fetchTime, true);
             }
-            return new DisclosureResult(Collections.emptyList(), null, true);
+            return new DisclosureResult(Collections.<DisclosureItem>emptyList(), null, true);
         }
     }
 
@@ -191,15 +189,20 @@ public class DisclosureService {
         for (String sc : stockCodes) {
             all.addAll(getDisclosures(sc).getItems());
         }
-        all.sort(Comparator.comparing(DisclosureItem::getReceiptDate).reversed());
+        Collections.sort(all, new Comparator<DisclosureItem>() {
+            @Override public int compare(DisclosureItem a, DisclosureItem b) {
+                return b.getReceiptDate().compareTo(a.getReceiptDate());
+            }
+        });
         return all;
     }
 
     // ---- 내부 헬퍼 ----
 
+    @SuppressWarnings("deprecation")
     private List<DisclosureItem> fetchFromDart(String corpCode, String stockCode) throws Exception {
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyyMMdd");
-        String today   = LocalDate.now().format(fmt);
+        String today          = LocalDate.now().format(fmt);
         String threeMonthsAgo = LocalDate.now().minusMonths(3).format(fmt);
 
         String urlStr = LIST_URL
@@ -214,12 +217,11 @@ public class DisclosureService {
 
         String status = root.path("status").asText();
         if (!"000".equals(status)) {
-            String msg = root.path("message").asText();
-            // 조회 결과 없음(013)은 에러가 아님
+            // 013: 조회 결과 없음 (에러 아님)
             if ("013".equals(status)) {
                 return Collections.emptyList();
             }
-            throw new RuntimeException("DART API 오류 [" + status + "]: " + msg);
+            throw new RuntimeException("DART API 오류 [" + status + "]: " + root.path("message").asText());
         }
 
         List<DisclosureItem> result = new ArrayList<>();
@@ -255,6 +257,7 @@ public class DisclosureService {
         return false;
     }
 
+    @SuppressWarnings("deprecation")
     private String httpGet(String urlStr) throws Exception {
         URL url = new URL(urlStr);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -264,17 +267,20 @@ public class DisclosureService {
 
         int code = conn.getResponseCode();
         if (code != 200) {
-            throw new RuntimeException("HTTP " + code + " from " + urlStr);
+            throw new RuntimeException("HTTP " + code);
         }
 
-        try (BufferedReader br = new BufferedReader(
-                new InputStreamReader(conn.getInputStream(), "UTF-8"))) {
+        BufferedReader br = new BufferedReader(
+                new InputStreamReader(conn.getInputStream(), "UTF-8"));
+        try {
             StringBuilder sb = new StringBuilder();
             String line;
             while ((line = br.readLine()) != null) {
                 sb.append(line);
             }
             return sb.toString();
+        } finally {
+            br.close();
         }
     }
 
@@ -302,13 +308,13 @@ public class DisclosureService {
         private final boolean stale;
 
         public DisclosureResult(List<DisclosureItem> items, LocalDateTime asOf, boolean stale) {
-            this.items = items != null ? items : Collections.emptyList();
+            this.items = items != null ? items : Collections.<DisclosureItem>emptyList();
             this.asOf  = asOf;
             this.stale = stale;
         }
 
-        public List<DisclosureItem> getItems()  { return items; }
-        public LocalDateTime        getAsOf()   { return asOf;  }
-        public boolean              isStale()   { return stale; }
+        public List<DisclosureItem> getItems() { return items; }
+        public LocalDateTime        getAsOf()  { return asOf;  }
+        public boolean              isStale()  { return stale; }
     }
 }
