@@ -79,8 +79,9 @@ public class DisclosureService implements InitializingBean {
             conn.setReadTimeout(30_000);
             conn.connect();
 
-            if (conn.getResponseCode() != 200) {
-                logger.error("corpCode.xml 응답 코드: {}", conn.getResponseCode());
+            int httpCode = conn.getResponseCode();
+            if (httpCode != 200) {
+                logger.error("DART corpCode.xml HTTP 오류: {}", httpCode);
                 return;
             }
 
@@ -90,8 +91,7 @@ public class DisclosureService implements InitializingBean {
             try (ZipInputStream zis = new ZipInputStream(conn.getInputStream())) {
                 ZipEntry entry;
                 while ((entry = zis.getNextEntry()) != null) {
-                    String name = entry.getName().toUpperCase();
-                    if (name.endsWith("CORPCODE.XML")) {
+                    if (entry.getName().toUpperCase().endsWith("CORPCODE.XML")) {
                         parseCorpCodeXml(zis, newStockMap, newInfoMap);
                         break;
                     }
@@ -103,10 +103,10 @@ public class DisclosureService implements InitializingBean {
                 corpCodeToInfo  = newInfoMap;
                 logger.info("DART corpCode 로딩 완료: 상장사 {}개", newStockMap.size());
             } else {
-                logger.warn("corpCode.xml에서 상장사 데이터를 찾지 못했습니다.");
+                logger.warn("DART corpCode.xml에서 상장사 데이터를 찾지 못했습니다 (ZIP 항목 이름 확인 필요).");
             }
         } catch (Exception e) {
-            logger.error("DART corpCode.xml 로딩 실패 — 기존 Map 유지", e);
+            logger.error("DART corpCode.xml 로딩 실패 — 기존 Map 유지: {}", e.getMessage());
         }
     }
 
@@ -127,7 +127,7 @@ public class DisclosureService implements InitializingBean {
             }
             @Override public void endElement(String u, String l, String qName) {
                 String val = buf.toString().trim();
-                if ("corp_code".equals(qName))  { corpCode  = val; }
+                if ("corp_code".equals(qName))       { corpCode  = val; }
                 else if ("corp_name".equals(qName))  { corpName  = val; }
                 else if ("stock_code".equals(qName)) { stockCode = val; }
                 else if ("list".equals(qName)) {
@@ -142,11 +142,13 @@ public class DisclosureService implements InitializingBean {
         });
     }
 
-    // 종목명 부분일치 검색 (최대 20개)
+    // 종목명 부분일치 또는 종목코드 직접 검색 (최대 20개)
     public List<CorpInfo> searchByName(String keyword) {
-        String lower = keyword.toLowerCase();
+        final String lower = keyword.toLowerCase();
+        final String trimmed = keyword.trim();
         return corpCodeToInfo.values().stream()
-                .filter(c -> c.getCorpName().toLowerCase().contains(lower))
+                .filter(c -> c.getCorpName().toLowerCase().contains(lower)
+                          || c.getStockCode().equals(trimmed))
                 .limit(20)
                 .collect(Collectors.toList());
     }
@@ -157,29 +159,36 @@ public class DisclosureService implements InitializingBean {
         CachedResult cached = disclosureCache.get(stockCode);
 
         if (cached != null && !cached.isExpired() && !cached.fetchFailed) {
-            return new DisclosureResult(cached.items, cached.fetchTime, false);
+            return new DisclosureResult(cached.items, cached.fetchTime, false, null);
         }
 
         String corpCode = stockToCorpCode.get(stockCode);
         if (corpCode == null) {
-            logger.warn("종목코드 {}에 해당하는 DART corpCode 없음", stockCode);
+            logger.warn("DART corpCode 조회 실패: stockCode={} (corpCode 맵에 없음)", stockCode);
             if (cached != null) {
-                return new DisclosureResult(cached.items, cached.fetchTime, true);
+                return new DisclosureResult(cached.items, cached.fetchTime, true, null);
             }
-            return new DisclosureResult(Collections.<DisclosureItem>emptyList(), null, true);
+            return new DisclosureResult(
+                    Collections.<DisclosureItem>emptyList(), null, false,
+                    "해당 종목의 DART 등록 정보를 찾을 수 없습니다. 종목코드를 확인하거나 종목명으로 검색해 주세요.");
         }
 
         try {
             List<DisclosureItem> items = fetchFromDart(corpCode, stockCode);
             LocalDateTime now = LocalDateTime.now();
             disclosureCache.put(stockCode, new CachedResult(items, now, false));
-            return new DisclosureResult(items, now, false);
+            return new DisclosureResult(items, now, false, null);
+        } catch (DartApiException e) {
+            // DART API가 오류 코드를 반환한 경우: 캐시 없이 사용자 메시지 전달
+            logger.warn("DART 공시 조회 오류: stockCode=" + stockCode + ", code=" + e.getCode() + ", msg=" + e.getMessage());
+            return new DisclosureResult(Collections.<DisclosureItem>emptyList(), null, false, e.getMessage());
         } catch (Exception e) {
+            // 네트워크 등 일시적 오류: 캐시 데이터가 있으면 stale 반환
             logger.error("DART 공시 조회 실패 (stockCode={}): {}", stockCode, e.getMessage());
             if (cached != null) {
-                return new DisclosureResult(cached.items, cached.fetchTime, true);
+                return new DisclosureResult(cached.items, cached.fetchTime, true, null);
             }
-            return new DisclosureResult(Collections.<DisclosureItem>emptyList(), null, true);
+            return new DisclosureResult(Collections.<DisclosureItem>emptyList(), null, true, null);
         }
     }
 
@@ -205,6 +214,7 @@ public class DisclosureService implements InitializingBean {
         String today          = LocalDate.now().format(fmt);
         String threeMonthsAgo = LocalDate.now().minusMonths(3).format(fmt);
 
+        // URL에 apiKey가 포함되므로 로그에는 절대 urlStr을 찍지 않는다
         String urlStr = LIST_URL
                 + "?crtfc_key=" + apiKey.trim()
                 + "&corp_code=" + corpCode
@@ -215,46 +225,53 @@ public class DisclosureService implements InitializingBean {
         String json = httpGet(urlStr);
         JsonNode root = objectMapper.readTree(json);
 
-        String status = root.path("status").asText();
+        String status  = root.path("status").asText();
+        String message = root.path("message").asText();
+
+        // 항상 status와 message를 로그로 남긴다 (key는 노출 안 함)
+        logger.info("DART list.json: corp_code=" + corpCode
+                + " bgn=" + threeMonthsAgo + " end=" + today
+                + " status=" + status + " msg=" + message);
+
         if (!"000".equals(status)) {
-            // 013: 조회 결과 없음 (에러 아님)
             if ("013".equals(status)) {
+                // 조회 결과 없음 — 에러 아님
                 return Collections.emptyList();
             }
-            throw new RuntimeException("DART API 오류 [" + status + "]: " + root.path("message").asText());
+            throw new DartApiException(status, dartUserMessage(status, message));
         }
 
         List<DisclosureItem> result = new ArrayList<>();
         JsonNode list = root.path("list");
         if (list.isArray()) {
             for (JsonNode node : list) {
-                String typeCd = node.path("report_tp").asText();
-                if (!"A".equals(typeCd) && !"B".equals(typeCd) && !"I".equals(typeCd)) {
-                    continue;
-                }
                 DisclosureItem item = new DisclosureItem();
                 item.setRcpNo(node.path("rcp_no").asText());
                 item.setCorpName(node.path("corp_name").asText());
                 item.setStockCode(stockCode);
-                item.setReportTypeCd(typeCd);
                 item.setTitle(node.path("report_nm").asText());
                 item.setReceiptDate(node.path("rcept_dt").asText());
-                item.setKey(isKeyDisclosure(typeCd, item.getTitle()));
+                item.setKey(isKeyDisclosure(item.getTitle()));
                 result.add(item);
             }
         }
+        logger.info("DART 공시 조회 완료: corp_code={}, 항목 {}건", corpCode, result.size());
         return result;
     }
 
-    private boolean isKeyDisclosure(String typeCd, String title) {
-        if ("A".equals(typeCd)) {
-            return title.contains("사업보고서") || title.contains("반기보고서") || title.contains("분기보고서");
-        }
-        if ("B".equals(typeCd) || "I".equals(typeCd)) {
-            return title.contains("유상증자") || title.contains("무상증자")
-                    || title.contains("잠정실적") || title.contains("영업(잠정)");
-        }
-        return false;
+    private String dartUserMessage(String status, String apiMessage) {
+        if ("010".equals(status)) return "등록되지 않은 인증키입니다.";
+        if ("011".equals(status)) return "사용할 수 없는 인증키입니다.";
+        if ("020".equals(status)) return "일일 요청 한도를 초과했습니다. 내일 다시 시도해 주세요.";
+        if ("100".equals(status)) return "요청 필드 오류입니다 (" + status + ").";
+        if ("800".equals(status)) return "DART 시스템 점검 중입니다.";
+        return "공시 정보를 불러오지 못했습니다 (사유: " + apiMessage + ").";
+    }
+
+    private boolean isKeyDisclosure(String title) {
+        return title.contains("사업보고서") || title.contains("반기보고서") || title.contains("분기보고서")
+                || title.contains("유상증자") || title.contains("무상증자")
+                || title.contains("잠정실적") || title.contains("영업(잠정)");
     }
 
     @SuppressWarnings("deprecation")
@@ -286,6 +303,16 @@ public class DisclosureService implements InitializingBean {
 
     // ---- 내부 클래스 ----
 
+    private static class DartApiException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+        private final String code;
+        DartApiException(String code, String userMsg) {
+            super(userMsg);
+            this.code = code;
+        }
+        String getCode() { return code; }
+    }
+
     private static class CachedResult {
         final List<DisclosureItem> items;
         final LocalDateTime fetchTime;
@@ -306,15 +333,18 @@ public class DisclosureService implements InitializingBean {
         private final List<DisclosureItem> items;
         private final LocalDateTime asOf;
         private final boolean stale;
+        private final String errorMsg;
 
-        public DisclosureResult(List<DisclosureItem> items, LocalDateTime asOf, boolean stale) {
-            this.items = items != null ? items : Collections.<DisclosureItem>emptyList();
-            this.asOf  = asOf;
-            this.stale = stale;
+        public DisclosureResult(List<DisclosureItem> items, LocalDateTime asOf, boolean stale, String errorMsg) {
+            this.items    = items != null ? items : Collections.<DisclosureItem>emptyList();
+            this.asOf     = asOf;
+            this.stale    = stale;
+            this.errorMsg = errorMsg;
         }
 
-        public List<DisclosureItem> getItems() { return items; }
-        public LocalDateTime        getAsOf()  { return asOf;  }
-        public boolean              isStale()  { return stale; }
+        public List<DisclosureItem> getItems()    { return items;    }
+        public LocalDateTime        getAsOf()     { return asOf;     }
+        public boolean              isStale()     { return stale;    }
+        public String               getErrorMsg() { return errorMsg; }
     }
 }

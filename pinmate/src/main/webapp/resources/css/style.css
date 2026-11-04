@@ -78,3 +78,25 @@ footer { padding: 16px; text-align: center; color: #888; }
 .btn:hover { background: #1f2d3a; }
 table.history { width: 100%; border-collapse: collapse; font-size: 14px; }
 table.history th, table.history td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; }
+
+/* 공시 조회 */
+.search-form { display: flex; gap: 8px; margin-bottom: 0; }
+.search-form input[type=text] { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; font-family: inherit; }
+.corp-list { margin: 12px 0 0; padding: 0; list-style: none; }
+.corp-list li { padding: 6px 0; border-bottom: 1px solid #eee; font-size: 14px; }
+.corp-list li:last-child { border-bottom: 0; }
+.corp-list li a { color: #2c3e50; text-decoration: none; }
+.corp-list li a:hover { text-decoration: underline; }
+.info-msg { margin: 8px 0 0; color: #888; font-size: 14px; }
+.filter-form { margin-bottom: 10px; font-size: 14px; color: #555; }
+.stale-banner { margin-bottom: 12px; padding: 8px 12px; background: #fff8e1; border: 1px solid #ffe082; border-radius: 4px; font-size: 13px; color: #795548; }
+table.disclosure-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.disclosure-table th { padding: 8px; border-bottom: 2px solid #eee; text-align: left; color: #666; font-weight: normal; white-space: nowrap; }
+table.disclosure-table td { padding: 8px; border-bottom: 1px solid #eee; vertical-align: middle; }
+table.disclosure-table td a { color: #2c3e50; text-decoration: none; }
+table.disclosure-table td a:hover { text-decoration: underline; }
+table.disclosure-table .col-date { white-space: nowrap; color: #888; }
+table.disclosure-table .col-corp { white-space: nowrap; }
+table.disclosure-table .col-badge { width: 48px; text-align: center; }
+.key-badge { display: inline-block; padding: 2px 7px; border-radius: 10px; background: #e74c3c; color: #fff; font-size: 11px; white-space: nowrap; }
+.dart-footer { margin: 16px 0 0; font-size: 12px; color: #aaa; line-height: 1.6; }

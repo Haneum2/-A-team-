@@ -50,19 +50,26 @@ public class DisclosureController {
 
         if (stockCode != null && !stockCode.trim().isEmpty()) {
             DisclosureResult result = disclosureService.getDisclosures(stockCode.trim());
-            List<DisclosureItem> items = result.getItems();
-            if (keyOnly) {
-                items = items.stream().filter(DisclosureItem::isKey).collect(Collectors.toList());
+
+            if (result.getErrorMsg() != null) {
+                model.addAttribute("dartError", result.getErrorMsg());
+            } else {
+                List<DisclosureItem> items = result.getItems();
+                if (keyOnly) {
+                    items = items.stream().filter(DisclosureItem::isKey).collect(Collectors.toList());
+                }
+                model.addAttribute("disclosures", items);
+                model.addAttribute("stale", result.isStale());
+
+                LocalDateTime asOf = result.getAsOf();
+                model.addAttribute("asOfStr", asOf != null ? asOf.format(DISPLAY_FMT) : "");
             }
-            model.addAttribute("disclosures", items);
+
             model.addAttribute("stockCode", stockCode.trim());
             model.addAttribute("keyOnly", keyOnly);
-            model.addAttribute("stale", result.isStale());
 
-            LocalDateTime asOf = result.getAsOf();
-            model.addAttribute("asOfStr", asOf != null ? asOf.format(DISPLAY_FMT) : "");
-
-            logger.info("공시 조회: stockCode={}, 결과 {}건", stockCode, items.size());
+            logger.info("공시 조회: stockCode={}, 결과 {}건",
+                    stockCode, result.getErrorMsg() != null ? 0 : result.getItems().size());
         }
 
         return "disclosure";
