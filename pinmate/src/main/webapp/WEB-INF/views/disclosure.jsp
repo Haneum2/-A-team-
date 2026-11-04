@@ -112,9 +112,16 @@
 												<td class="col-date"><c:out value="${d.receiptDate}"/></td>
 												<td class="col-corp"><c:out value="${d.corpName}"/></td>
 												<td>
-													<a href="<c:out value='${d.dartUrl}'/>" target="_blank" rel="noopener noreferrer">
-														<c:out value="${d.title}"/>
-													</a>
+													<c:choose>
+														<c:when test="${not empty d.rcpNo}">
+															<a href="<c:out value='${d.dartUrl}'/>" target="_blank" rel="noopener noreferrer">
+																<c:out value="${d.title}"/>
+															</a>
+														</c:when>
+														<c:otherwise>
+															<c:out value="${d.title}"/>
+														</c:otherwise>
+													</c:choose>
 												</td>
 												<td class="col-badge">
 													<c:if test="${d.key}">

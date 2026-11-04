@@ -246,11 +246,11 @@ public class DisclosureService implements InitializingBean {
         if (list.isArray()) {
             for (JsonNode node : list) {
                 DisclosureItem item = new DisclosureItem();
-                item.setRcpNo(node.path("rcp_no").asText());
+                item.setRcpNo(node.path("rcept_no").asText());
                 item.setCorpName(node.path("corp_name").asText());
                 item.setStockCode(stockCode);
                 item.setTitle(node.path("report_nm").asText());
-                item.setReceiptDate(node.path("rcept_dt").asText());
+                item.setReceiptDate(formatDate(node.path("rcept_dt").asText()));
                 item.setKey(isKeyDisclosure(item.getTitle()));
                 result.add(item);
             }
@@ -266,6 +266,13 @@ public class DisclosureService implements InitializingBean {
         if ("100".equals(status)) return "요청 필드 오류입니다 (" + status + ").";
         if ("800".equals(status)) return "DART 시스템 점검 중입니다.";
         return "공시 정보를 불러오지 못했습니다 (사유: " + apiMessage + ").";
+    }
+
+    private String formatDate(String yyyymmdd) {
+        if (yyyymmdd != null && yyyymmdd.length() == 8) {
+            return yyyymmdd.substring(0, 4) + "-" + yyyymmdd.substring(4, 6) + "-" + yyyymmdd.substring(6, 8);
+        }
+        return yyyymmdd;
     }
 
     private boolean isKeyDisclosure(String title) {
