@@ -36,6 +36,6 @@
 
 	<bean id="passwordEncoder" class="org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder" />
 
-	<context:component-scan base-package="org.mnu.dao,org.mnu.disclosure,org.mnu.portfolio" />
+	<context:component-scan base-package="org.mnu.dao,org.mnu.disclosure,org.mnu.portfolio,org.mnu.watchlist" />
 
 </beans>

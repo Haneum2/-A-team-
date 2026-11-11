@@ -15,6 +15,7 @@
 		<a href="${pageContext.request.contextPath}/">홈</a>
 		<a href="${pageContext.request.contextPath}/mypage">마이페이지</a>
 		<a href="${pageContext.request.contextPath}/stock/search">종목</a>
+		<a href="${pageContext.request.contextPath}/watchlist">관심종목</a>
 		<a href="${pageContext.request.contextPath}/disclosure">공시</a>
 		<a href="${pageContext.request.contextPath}/logout">로그아웃</a>
 	</nav>
@@ -23,6 +24,9 @@
 <main class="container">
 
 	<p><a href="${pageContext.request.contextPath}/stock/search" class="back-link">&larr; 종목 검색</a></p>
+
+	<c:if test="${not empty flashMsg}"><p class="success"><c:out value="${flashMsg}"/></p></c:if>
+	<c:if test="${not empty flashError}"><p class="error"><c:out value="${flashError}"/></p></c:if>
 
 	<c:choose>
 		<c:when test="${apiKeyMissing}">
@@ -46,6 +50,10 @@
 					<c:out value="${corp.corpName}"/>
 					<span class="stock-code"><c:out value="${corp.stockCode}"/></span>
 				</h2>
+				<form method="post" action="${pageContext.request.contextPath}/watchlist/add">
+					<input type="hidden" name="stockCode" value="<c:out value='${corp.stockCode}'/>">
+					<button type="submit" class="btn small">관심종목 추가</button>
+				</form>
 				<%-- 시세: 데이터 이용 조건(KRX 원천 데이터 제3자 제공 제한) 확인 후 연결 예정 --%>
 				<p class="info-msg">시세 정보는 준비 중입니다.</p>
 			</div>

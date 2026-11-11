@@ -9,7 +9,10 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -64,6 +67,11 @@ public class TossPriceClient {
 
 	/** stockCode -> 마지막으로 받은 시세 */
 	private final Map<String, Quote> lastQuotes = new ConcurrentHashMap<String, Quote>();
+
+	/** 전일 종가는 하루에 한 번만 바뀌므로 오래 캐시한다 (일봉 조회는 종목마다 1회 호출이라 호출 한도 보호). */
+	private static final long PREV_CLOSE_TTL_MS = 30 * 60_000L;
+	/** stockCode -> 전일 종가 */
+	private final Map<String, PrevClose> prevCloses = new ConcurrentHashMap<String, PrevClose>();
 
 	public boolean isConfigured() {
 		return clientId != null && !clientId.trim().isEmpty()
@@ -274,6 +282,101 @@ public class TossPriceClient {
 			}
 		}
 		return new HttpResult(code, body);
+	}
+
+	/**
+	 * 현재가 시세(quotes)에 대응하는 전일 종가를 일봉으로 구한다. (등락률 = (현재가 - 전일종가) / 전일종가)
+	 * 기준 거래일은 시세의 timestamp 날짜이고, 그보다 이전 날짜의 가장 최근 일봉 종가를 전일 종가로 본다.
+	 * 조회에 실패한 종목은 이전에 받아 둔 값을 쓰고, 그것도 없으면 결과 맵에 들어 있지 않다. (등락률은 '-'로 표시)
+	 */
+	public Map<String, BigDecimal> getPreviousCloses(Map<String, Quote> quotes) {
+		Map<String, BigDecimal> out = new HashMap<String, BigDecimal>();
+		if (quotes == null || quotes.isEmpty() || !isConfigured()) {
+			return out;
+		}
+		boolean stop = false;
+		for (Map.Entry<String, Quote> e : quotes.entrySet()) {
+			String code = e.getKey();
+			LocalDate tradeDate = tradeDateOf(e.getValue());
+			PrevClose cached = prevCloses.get(code);
+			if (cached != null && cached.tradeDate.equals(tradeDate)
+					&& Duration.between(cached.fetchedAt, LocalDateTime.now()).toMillis() < PREV_CLOSE_TTL_MS) {
+				out.put(code, cached.price);
+				continue;
+			}
+			if (!stop) {
+				try {
+					BigDecimal prev = fetchPreviousClose(code, tradeDate);
+					if (prev != null) {
+						prevCloses.put(code, new PrevClose(prev, tradeDate, LocalDateTime.now()));
+						out.put(code, prev);
+						continue;
+					}
+				} catch (TossApiException ex) {
+					logger.warn("토스증권 일봉 조회 오류: code={}, http={}, msg={}", new Object[] { code, ex.getHttpCode(), ex.getMessage() });
+					stop = true; // 인증/한도 오류면 나머지 종목도 같은 오류가 나므로 더 부르지 않는다.
+				} catch (Exception ex) {
+					logger.warn("토스증권 일봉 조회 실패: code={}, {}", code, ex.toString());
+				}
+			}
+			if (cached != null) {
+				out.put(code, cached.price); // 새로 못 구했으면 마지막으로 받은 값을 쓴다.
+			}
+		}
+		return out;
+	}
+
+	/** 시세의 timestamp 날짜(없으면 오늘, 한국 시간)를 기준 거래일로 본다. */
+	private LocalDate tradeDateOf(Quote q) {
+		try {
+			if (q.getQuoteTime() != null && !q.getQuoteTime().isEmpty()) {
+				return OffsetDateTime.parse(q.getQuoteTime()).toLocalDate();
+			}
+		} catch (Exception ignore) {
+			// 형식이 다르면 오늘 날짜로 대신한다.
+		}
+		return LocalDate.now(ZoneId.of("Asia/Seoul"));
+	}
+
+	/** 일봉(최신순)에서 tradeDate 보다 앞선 첫 봉의 종가를 돌려준다. 없으면 null. */
+	private BigDecimal fetchPreviousClose(String code, LocalDate tradeDate) throws Exception {
+		String url = BASE_URL + "/api/v1/candles?symbol=" + URLEncoder.encode(code, "UTF-8")
+				+ "&interval=1d&count=3";
+		HttpResult res = request("GET", url, null, getToken());
+		if (res.code == 401) {
+			invalidateToken();
+			res = request("GET", url, null, getToken());
+		}
+		if (res.code != 200) {
+			throw new TossApiException(res.code, userMessage(res.code));
+		}
+		for (JsonNode c : objectMapper.readTree(res.body).path("result").path("candles")) {
+			String ts = c.path("timestamp").asText("");
+			String close = c.path("closePrice").asText("");
+			if (ts.isEmpty() || close.isEmpty()) {
+				continue;
+			}
+			try {
+				if (OffsetDateTime.parse(ts).toLocalDate().isBefore(tradeDate)) {
+					return new BigDecimal(close);
+				}
+			} catch (Exception ignore) {
+				// 읽을 수 없는 봉은 건너뛴다.
+			}
+		}
+		return null;
+	}
+
+	private static class PrevClose {
+		final BigDecimal price;
+		final LocalDate tradeDate;
+		final LocalDateTime fetchedAt;
+
+		PrevClose(BigDecimal price, LocalDate tradeDate, LocalDateTime fetchedAt) {
+			this.price = price;
+			this.tradeDate = tradeDate;
+			this.fetchedAt = fetchedAt;
+		}
 	}
 
 	// ---- 내부/결과 클래스 ----
