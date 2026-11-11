@@ -14,6 +14,9 @@
 	<nav>
 		<a href="${pageContext.request.contextPath}/">홈</a>
 		<a href="${pageContext.request.contextPath}/mypage">마이페이지</a>
+		<a href="${pageContext.request.contextPath}/stock/search">종목</a>
+		<a href="${pageContext.request.contextPath}/watchlist">관심종목</a>
+		<a href="${pageContext.request.contextPath}/portfolio">포트폴리오</a>
 		<a href="${pageContext.request.contextPath}/disclosure">공시</a>
 		<a href="${pageContext.request.contextPath}/logout">로그아웃</a>
 	</nav>

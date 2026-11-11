@@ -1,3 +1,9 @@
+# 이 파일을 api.properties 로 복사한 뒤 키를 입력하세요. (api.properties 는 .gitignore 대상이라 커밋되지 않습니다)
+
 # DART OpenAPI 키 (https://opendart.fss.or.kr > 개발가이드 > 인증키 발급)
-# 이 파일을 api.properties 로 복사한 뒤 키를 입력하세요.
 dart.api.key=여기에_발급받은_키_입력
+
+# 토스증권 Open API (토스증권 PC 웹 > 설정 > Open API 에서 발급)
+# 키를 발급할 때 등록한 허용 IP 에서만 호출할 수 있습니다.
+toss.client.id=여기에_Client_Id_입력
+toss.client.secret=여기에_Client_Secret_입력
