@@ -43,13 +43,19 @@ public class NewsService {
     };
 
     private static final List<String> ECONOMY_RSS_URLS;
+    // 피드 URL → 표시할 언론사명 (채널 제목 대신 사용)
+    private static final Map<String, String> FEED_PUBLISHERS;
     static {
-        List<String> urls = new ArrayList<String>();
-        urls.add("https://www.hankyung.com/feed/finance");
-        urls.add("https://www.hankyung.com/feed/economy");
-        urls.add("https://www.sedaily.com/rss/economy");
-        urls.add("https://www.yna.co.kr/rss/economy.xml");
+        List<String>        urls = new ArrayList<String>();
+        Map<String, String> pub  = new LinkedHashMap<String, String>();
+
+        urls.add("https://www.hankyung.com/feed/finance");   pub.put("https://www.hankyung.com/feed/finance",  "한국경제");
+        urls.add("https://www.hankyung.com/feed/economy");   pub.put("https://www.hankyung.com/feed/economy",  "한국경제");
+        urls.add("https://www.sedaily.com/rss/economy");     pub.put("https://www.sedaily.com/rss/economy",    "서울경제");
+        urls.add("https://www.yna.co.kr/rss/economy.xml");   pub.put("https://www.yna.co.kr/rss/economy.xml",  "연합뉴스");
+
         ECONOMY_RSS_URLS = Collections.unmodifiableList(urls);
+        FEED_PUBLISHERS  = Collections.unmodifiableMap(pub);
     }
 
     private final Map<String, CachedFeed> feedCache = new ConcurrentHashMap<String, CachedFeed>();
@@ -181,9 +187,10 @@ public class NewsService {
         }
 
         try {
-            InputStream        is    = openStream(rssUrl);
-            List<NewsItem>     items = parseRss(is, isGoogle);
-            CachedFeed         fresh = new CachedFeed(items, LocalDateTime.now(), false);
+            InputStream        is        = openStream(rssUrl);
+            String             publisher = FEED_PUBLISHERS.get(rssUrl); // null이면 채널 제목 사용
+            List<NewsItem>     items     = parseRss(is, isGoogle, publisher);
+            CachedFeed         fresh     = new CachedFeed(items, LocalDateTime.now(), false);
             feedCache.put(cacheKey, fresh);
             return fresh;
         } catch (Exception e) {
@@ -221,12 +228,13 @@ public class NewsService {
     // private — DOM 파싱 (SER-002 XXE 방지)
     // -------------------------------------------------------------------------
 
-    private List<NewsItem> parseRss(InputStream is, boolean isGoogle) throws Exception {
+    private List<NewsItem> parseRss(InputStream is, boolean isGoogle,
+                                    String publisherOverride) throws Exception {
         DocumentBuilderFactory factory = createSecureFactory();
         DocumentBuilder        builder = factory.newDocumentBuilder();
         Document               doc     = builder.parse(is);
 
-        // 채널 제목에서 언론사명 추출 (국내 RSS 피드용)
+        // 채널 제목은 publisherOverride 가 없을 때의 fallback
         String channelTitle = "";
         NodeList channels = doc.getElementsByTagName("channel");
         if (channels.getLength() > 0) {
@@ -235,6 +243,9 @@ public class NewsService {
                 channelTitle = titleNodes.item(0).getTextContent().trim();
             }
         }
+        // 국내 피드: publisherOverride > 채널 제목 순으로 사용
+        String feedSource = (publisherOverride != null && !publisherOverride.isEmpty())
+                ? publisherOverride : channelTitle;
 
         NodeList       itemNodes = doc.getElementsByTagName("item");
         List<NewsItem> result    = new ArrayList<NewsItem>();
@@ -248,8 +259,8 @@ public class NewsService {
 
             if (link == null || link.trim().isEmpty()) continue;
 
-            String title  = isGoogle ? cleanTitle(rawTitle)              : rawTitle;
-            String source = isGoogle ? extractSource(rawTitle, sourceTag) : channelTitle;
+            String title  = isGoogle ? cleanTitle(rawTitle)               : rawTitle;
+            String source = isGoogle ? extractSource(rawTitle, sourceTag) : feedSource;
 
             NewsItem ni = new NewsItem();
             ni.setTitle(title  != null ? title.trim()  : "");

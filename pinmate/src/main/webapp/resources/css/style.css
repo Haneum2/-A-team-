@@ -134,4 +134,5 @@ input.mini { width: 96px; padding: 6px; border: 1px solid #ccc; border-radius: 4
 
 /* 뉴스 탭 */
 .tab-bar { display: flex; gap: 8px; margin-bottom: 8px; }
-.btn.tab-active { background: #1f2d3a; }
+.tab-bar .btn { background: #fff; color: #2c3e50; border: 1px solid #bdc3c7; }
+.tab-bar .btn.tab-active { background: #1f2d3a; color: #fff; border-color: #1f2d3a; }

@@ -28,13 +28,14 @@
 
     <%-- 탭 버튼 --%>
     <div class="card">
+        <h2>뉴스</h2>
         <div class="tab-bar">
             <a href="${pageContext.request.contextPath}/news?tab=all"
-               class="btn small <c:if test="${activeTab == 'all'}">tab-active</c:if>">전체</a>
+               class="btn small<c:if test="${activeTab == 'all'}"> tab-active</c:if>">전체</a>
             <a href="${pageContext.request.contextPath}/news?tab=holding"
-               class="btn small <c:if test="${activeTab == 'holding'}">tab-active</c:if>">보유종목</a>
+               class="btn small<c:if test="${activeTab == 'holding'}"> tab-active</c:if>">보유종목</a>
             <a href="${pageContext.request.contextPath}/news?tab=watch"
-               class="btn small <c:if test="${activeTab == 'watch'}">tab-active</c:if>">관심종목</a>
+               class="btn small<c:if test="${activeTab == 'watch'}"> tab-active</c:if>">관심종목</a>
         </div>
     </div>
 
