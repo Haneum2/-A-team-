@@ -72,7 +72,9 @@ public class NewsController {
         LocalDateTime asOf = result.getAsOf();
         model.addAttribute("asOfStr", asOf != null ? asOf.format(DISPLAY_FMT) : "");
 
-        logger.info("뉴스 조회: userId={}, tab={}, 결과 {}건", userId, tab, result.getItems().size());
+        // SLF4J 1.6.x: 3개 이상 인수는 Object[] 배열로 전달
+        logger.info("뉴스 조회: userId={}, tab={}, 결과 {}건",
+                new Object[]{userId, tab, result.getItems().size()});
 
         return "news";
     }
