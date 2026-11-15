@@ -131,3 +131,7 @@ input.mini { width: 96px; padding: 6px; border: 1px solid #ccc; border-radius: 4
 .score-row .num.wide-num { width: 56px; }
 .add-form { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .add-form .who { flex: 1; min-width: 160px; }
+
+/* 뉴스 탭 */
+.tab-bar { display: flex; gap: 8px; margin-bottom: 8px; }
+.btn.tab-active { background: #1f2d3a; }
