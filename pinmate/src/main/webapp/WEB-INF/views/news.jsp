@@ -118,99 +118,113 @@
         </div>
     </c:if>
 
-    <%-- 뉴스 목록 --%>
-    <c:choose>
-        <c:when test="${not empty news}">
-            <div class="card">
+    <%-- 뉴스 카드: hasStocks 일 때만 표시. 필터 바는 결과 0건이어도 항상 표시 --%>
+    <c:if test="${hasStocks}">
+        <div class="card">
 
-                <%-- 감성 필터 버튼 --%>
-                <div style="margin-bottom:10px;">
-                    <span style="font-size:.85rem; margin-right:6px;">감성 필터:</span>
-                    <a href="${pageContext.request.contextPath}/news?tab=<c:out value='${activeTab}'/>&amp;filter=all"
-                       class="btn small<c:if test="${activeFilter == 'all'}"> filter-active</c:if>">전체</a>
-                    <a href="${pageContext.request.contextPath}/news?tab=<c:out value='${activeTab}'/>&amp;filter=positive"
-                       class="btn small<c:if test="${activeFilter == 'positive'}"> filter-active</c:if>">호재만</a>
-                    <a href="${pageContext.request.contextPath}/news?tab=<c:out value='${activeTab}'/>&amp;filter=negative"
-                       class="btn small<c:if test="${activeFilter == 'negative'}"> filter-active</c:if>">악재만</a>
-                </div>
+            <%-- 감성 필터 버튼 (항상 표시) --%>
+            <div style="margin-bottom:10px;">
+                <span style="font-size:.85rem; margin-right:6px;">감성 필터:</span>
+                <a href="${pageContext.request.contextPath}/news?tab=<c:out value='${activeTab}'/>&amp;filter=all"
+                   class="btn small<c:if test="${activeFilter == 'all'}"> filter-active</c:if>">전체</a>
+                <a href="${pageContext.request.contextPath}/news?tab=<c:out value='${activeTab}'/>&amp;filter=positive"
+                   class="btn small<c:if test="${activeFilter == 'positive'}"> filter-active</c:if>">호재만</a>
+                <a href="${pageContext.request.contextPath}/news?tab=<c:out value='${activeTab}'/>&amp;filter=negative"
+                   class="btn small<c:if test="${activeFilter == 'negative'}"> filter-active</c:if>">악재만</a>
+            </div>
 
-                <div class="table-scroll">
-                    <table class="disclosure-table">
-                        <thead>
-                            <tr>
-                                <th class="col-date">발행 시각</th>
-                                <th class="col-corp">언론사</th>
-                                <th>제목</th>
-                                <th>감성</th>
-                                <th>종목</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <c:forEach items="${news}" var="n">
+            <%-- 콘텐츠 영역 --%>
+            <c:choose>
+                <c:when test="${not empty news}">
+                    <div class="table-scroll">
+                        <table class="disclosure-table">
+                            <thead>
                                 <tr>
-                                    <td class="col-date">
-                                        <c:choose>
-                                            <c:when test="${not empty n.pubDate}">
-                                                <fmt:formatDate value="${n.pubDate}" pattern="yyyy-MM-dd HH:mm"/>
-                                            </c:when>
-                                            <c:otherwise>-</c:otherwise>
-                                        </c:choose>
-                                    </td>
-                                    <td class="col-corp"><c:out value="${n.source}"/></td>
-                                    <td>
-                                        <a href="<c:out value='${n.link}'/>"
-                                           target="_blank" rel="noopener noreferrer">
-                                            <c:out value="${n.title}"/>
-                                        </a>
-                                    </td>
-                                    <td style="white-space:nowrap;">
-                                        <c:choose>
-                                            <c:when test="${n.sentiment.tag == 'POSITIVE'}">
-                                                <span class="badge badge-positive"
-                                                      title="<c:out value='${n.sentiment.matchedKeywordsStr}'/>">호재</span>
-                                            </c:when>
-                                            <c:when test="${n.sentiment.tag == 'NEGATIVE'}">
-                                                <span class="badge badge-negative"
-                                                      title="<c:out value='${n.sentiment.matchedKeywordsStr}'/>">악재</span>
-                                            </c:when>
-                                            <c:otherwise>
-                                                <span class="badge badge-neutral">중립</span>
-                                            </c:otherwise>
-                                        </c:choose>
-                                    </td>
-                                    <td class="col-badges">
-                                        <c:forEach items="${n.relatedStocks}" var="st">
-                                            <span class="tag"><c:out value="${st}"/></span>
-                                        </c:forEach>
-                                    </td>
+                                    <th class="col-date">발행 시각</th>
+                                    <th class="col-corp">언론사</th>
+                                    <th>제목</th>
+                                    <th>감성</th>
+                                    <th>종목</th>
                                 </tr>
-                            </c:forEach>
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody>
+                                <c:forEach items="${news}" var="n">
+                                    <tr>
+                                        <td class="col-date">
+                                            <c:choose>
+                                                <c:when test="${not empty n.pubDate}">
+                                                    <fmt:formatDate value="${n.pubDate}" pattern="yyyy-MM-dd HH:mm"/>
+                                                </c:when>
+                                                <c:otherwise>-</c:otherwise>
+                                            </c:choose>
+                                        </td>
+                                        <td class="col-corp"><c:out value="${n.source}"/></td>
+                                        <td>
+                                            <a href="<c:out value='${n.link}'/>"
+                                               target="_blank" rel="noopener noreferrer">
+                                                <c:out value="${n.title}"/>
+                                            </a>
+                                        </td>
+                                        <td style="white-space:nowrap;">
+                                            <c:choose>
+                                                <c:when test="${n.sentiment.tag == 'POSITIVE'}">
+                                                    <span class="badge badge-positive"
+                                                          title="<c:out value='${n.sentiment.matchedKeywordsStr}'/>">호재</span>
+                                                </c:when>
+                                                <c:when test="${n.sentiment.tag == 'NEGATIVE'}">
+                                                    <span class="badge badge-negative"
+                                                          title="<c:out value='${n.sentiment.matchedKeywordsStr}'/>">악재</span>
+                                                </c:when>
+                                                <c:otherwise>
+                                                    <span class="badge badge-neutral">중립</span>
+                                                </c:otherwise>
+                                            </c:choose>
+                                        </td>
+                                        <td class="col-badges">
+                                            <c:forEach items="${n.relatedStocks}" var="st">
+                                                <span class="tag"><c:out value="${st}"/></span>
+                                            </c:forEach>
+                                        </td>
+                                    </tr>
+                                </c:forEach>
+                            </tbody>
+                        </table>
+                    </div>
 
-                <p class="dart-footer">
-                    <c:if test="${not empty asOfStr}">
-                        뉴스 기준 시각: <c:out value="${asOfStr}"/><br>
-                    </c:if>
-                    <c:if test="${stale}">
-                        일부 피드 갱신에 실패했습니다. 잠시 후 다시 확인해 주세요.<br>
-                    </c:if>
-                    뉴스 저작권은 각 언론사에 있으며 제목·언론사·발행 시각·원문 링크만 제공합니다.
-                </p>
+                    <p class="dart-footer">
+                        <c:if test="${not empty asOfStr}">
+                            뉴스 기준 시각: <c:out value="${asOfStr}"/><br>
+                        </c:if>
+                        <c:if test="${stale}">
+                            일부 피드 갱신에 실패했습니다. 잠시 후 다시 확인해 주세요.<br>
+                        </c:if>
+                        뉴스 저작권은 각 언론사에 있으며 제목·언론사·발행 시각·원문 링크만 제공합니다.
+                    </p>
+                </c:when>
+                <c:when test="${activeFilter == 'positive'}">
+                    <%-- 호재 필터 0건: 전체 보기 링크 제공 --%>
+                    <p class="info-msg">호재로 분류된 기사가 없습니다.
+                        <a href="${pageContext.request.contextPath}/news?tab=<c:out value='${activeTab}'/>&amp;filter=all">전체 보기</a>
+                    </p>
+                </c:when>
+                <c:when test="${activeFilter == 'negative'}">
+                    <%-- 악재 필터 0건: 전체 보기 링크 제공 --%>
+                    <p class="info-msg">악재로 분류된 기사가 없습니다.
+                        <a href="${pageContext.request.contextPath}/news?tab=<c:out value='${activeTab}'/>&amp;filter=all">전체 보기</a>
+                    </p>
+                </c:when>
+                <c:otherwise>
+                    <p class="info-msg">표시할 뉴스가 없습니다.</p>
+                </c:otherwise>
+            </c:choose>
 
-                <p class="sentiment-disclaimer">
-                    ※ 호재/악재 태그와 브리핑은 기사 제목의 키워드를 기반으로 자동 분류한 참고 정보이며
-                    투자 판단의 근거가 될 수 없습니다.
-                </p>
-            </div>
-        </c:when>
-        <c:when test="${hasStocks}">
-            <div class="card">
-                <p class="info-msg">표시할 뉴스가 없습니다.</p>
-            </div>
-        </c:when>
-    </c:choose>
+            <%-- 면책 안내 (항상 표시) --%>
+            <p class="sentiment-disclaimer">
+                ※ 호재/악재 태그와 브리핑은 기사 제목의 키워드를 기반으로 자동 분류한 참고 정보이며
+                투자 판단의 근거가 될 수 없습니다.
+            </p>
+        </div>
+    </c:if>
 
 </main>
 </body>
