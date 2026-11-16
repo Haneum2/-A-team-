@@ -97,6 +97,44 @@ public class SentimentAnalyzerTest {
         assertEquals("중립 시 매칭 키워드 없음", true, r.getMatchedKeywords().isEmpty());
     }
 
+    // ── 기호(↑↓) 증감 표현 ───────────────────────────────────
+
+    @Test
+    public void 하락기호_악재() {
+        // "19.9%↓" → ↓ 단독 키워드 매칭 → NEGATIVE
+        SentimentResult r = analyzer.analyze("순이익 7천억…작년 대비 19.9%↓");
+        assertEquals("19.9%↓ → NEGATIVE", SentimentTag.NEGATIVE, r.getTag());
+    }
+
+    @Test
+    public void 상승기호_호재() {
+        // "42%↑" → ↑ 단독 키워드 매칭 → POSITIVE
+        SentimentResult r = analyzer.analyze("순이익 37억원…전기 대비 42%↑");
+        assertEquals("42%↑ → POSITIVE", SentimentTag.POSITIVE, r.getTag());
+    }
+
+    // ── 신규 호재 키워드 ──────────────────────────────────────
+
+    @Test
+    public void 대규모공급계약_호재() {
+        SentimentResult r = analyzer.analyze("美에 최대 4조 배터리 공급");
+        assertEquals("대규모 배터리 공급 → POSITIVE", SentimentTag.POSITIVE, r.getTag());
+    }
+
+    @Test
+    public void 무죄확정_호재() {
+        SentimentResult r = analyzer.analyze("대법서 무죄 확정");
+        assertEquals("무죄 확정 → POSITIVE", SentimentTag.POSITIVE, r.getTag());
+    }
+
+    // ── 신규 악재 키워드 ──────────────────────────────────────
+
+    @Test
+    public void 등록취소_악재() {
+        SentimentResult r = analyzer.analyze("등록취소 사전통지");
+        assertEquals("등록취소 → NEGATIVE", SentimentTag.NEGATIVE, r.getTag());
+    }
+
     // ── null / 빈 문자열 방어 ─────────────────────────────────
 
     @Test
