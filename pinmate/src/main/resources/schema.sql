@@ -71,3 +71,38 @@ CREATE TABLE WATCHLIST (
     REG_DATE    DATE           DEFAULT SYSDATE NOT NULL,
     CONSTRAINT UQ_WATCHLIST_USER_STOCK UNIQUE (USER_ID, STOCK_CODE)
 );
+
+-- ===== 알림 (SFR-010 / UC-010 알림 설정, UC-011 알림 발송) =====
+
+-- 알림 수신 설정. 행이 없는 회원은 모든 알림을 받는 것으로 본다(기본값 Y).
+CREATE TABLE NOTIFY_SETTING (
+    USER_ID    VARCHAR2(50)  PRIMARY KEY REFERENCES MEMBER(USER_ID),
+    NEWS_YN    CHAR(1)       DEFAULT 'Y' NOT NULL CHECK (NEWS_YN   IN ('Y', 'N')),   -- 보유 종목 뉴스
+    PRICE_YN   CHAR(1)       DEFAULT 'Y' NOT NULL CHECK (PRICE_YN  IN ('Y', 'N')),   -- 보유 종목 급등락
+    REPORT_YN  CHAR(1)       DEFAULT 'Y' NOT NULL CHECK (REPORT_YN IN ('Y', 'N')),   -- 모닝 브리핑 / 마감 시황
+    UPD_DATE   DATE          DEFAULT SYSDATE NOT NULL
+);
+
+-- 알림 발송 이력 겸 알림함. 앱 내 알림은 STATUS = 'SENT' 인 행이 회원의 알림함에 보인다.
+-- (USER_ID, DEDUP_KEY) 유니크 제약으로 같은 기사·같은 날 같은 급등락·같은 날 리포트를 두 번 보내지 않는다.
+CREATE SEQUENCE NOTIFICATION_SEQ START WITH 1 INCREMENT BY 1;
+
+CREATE TABLE NOTIFICATION (
+    NOTI_ID      NUMBER          PRIMARY KEY,
+    USER_ID      VARCHAR2(50)    NOT NULL REFERENCES MEMBER(USER_ID),
+    NOTI_TYPE    VARCHAR2(10)    NOT NULL,              -- NEWS / PRICE / REPORT
+    STOCK_CODE   VARCHAR2(20),                           -- 관련 종목 (리포트는 NULL)
+    TITLE        VARCHAR2(400)   NOT NULL,
+    CONTENT      VARCHAR2(4000),
+    LINK         VARCHAR2(2000),                         -- 기사 URL 또는 /portfolio 같은 내부 경로
+    DEDUP_KEY    VARCHAR2(100)   NOT NULL,               -- 중복 발송 방지 키 (뉴스는 기사 URL 해시)
+    STATUS       VARCHAR2(10)    DEFAULT 'PENDING' NOT NULL,   -- PENDING / SENT / FAILED / CANCELED
+    RETRY_COUNT  NUMBER(2)       DEFAULT 0 NOT NULL,     -- 발송 실패 횟수
+    FAIL_REASON  VARCHAR2(300),
+    READ_YN      CHAR(1)         DEFAULT 'N' NOT NULL,
+    CREATED_AT   DATE            DEFAULT SYSDATE NOT NULL,
+    SENT_AT      DATE,
+    CONSTRAINT UQ_NOTIFICATION_DEDUP UNIQUE (USER_ID, DEDUP_KEY)
+);
+
+CREATE INDEX IX_NOTIFICATION_STATUS ON NOTIFICATION (STATUS, RETRY_COUNT);

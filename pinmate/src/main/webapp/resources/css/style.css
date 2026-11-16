@@ -136,3 +136,27 @@ input.mini { width: 96px; padding: 6px; border: 1px solid #ccc; border-radius: 4
 .tab-bar { display: flex; gap: 8px; margin-bottom: 8px; }
 .tab-bar .btn { background: #fff; color: #2c3e50; border: 1px solid #bdc3c7; }
 .tab-bar .btn.tab-active { background: #1f2d3a; color: #fff; border-color: #1f2d3a; }
+
+/* 알림 */
+header nav a { white-space: nowrap; display: inline-block; }
+.noti-badge { display: inline-block; min-width: 18px; margin-left: 4px; padding: 1px 6px; border-radius: 9px; background: #e74c3c; color: #fff; font-size: 11px; line-height: 16px; text-align: center; vertical-align: top; }
+.noti-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.noti-head-actions { display: flex; gap: 6px; }
+.noti-head-actions form { margin: 0; }
+.noti-list { margin: 0; padding: 0; list-style: none; }
+.noti-list li { border-bottom: 1px solid #eee; }
+.noti-list li:last-child { border-bottom: 0; }
+.noti-list li a { display: block; padding: 12px 4px; color: #222; text-decoration: none; }
+.noti-list li a:hover { background: #f8f9fa; }
+.noti-list li.unread a { background: #f3f8fd; }
+.noti-list li.unread .noti-title { font-weight: bold; }
+.noti-type { display: inline-block; margin-right: 6px; padding: 1px 7px; border-radius: 10px; background: #eceff1; color: #2c3e50; font-size: 11px; vertical-align: 1px; }
+.noti-type.noti-PRICE { background: #fdecea; color: #c0392b; }
+.noti-type.noti-REPORT { background: #e8f4fd; color: #1f6fa8; }
+.noti-title { font-size: 14px; }
+.noti-content { display: block; margin: 4px 0; color: #555; font-size: 13px; white-space: pre-line; }
+.toggle-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #eee; cursor: pointer; }
+.toggle-row strong { display: block; font-size: 15px; }
+.toggle-row small { color: #888; font-size: 13px; }
+.toggle-row input { width: 20px; height: 20px; flex-shrink: 0; }
+.toggle-row + .btn { margin-top: 16px; }

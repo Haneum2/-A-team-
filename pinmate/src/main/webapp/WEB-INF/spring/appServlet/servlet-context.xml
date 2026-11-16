@@ -22,6 +22,15 @@
 	</beans:bean>
 	
 	<context:component-scan base-package="org.mnu.controller" />
+
+	<!-- 로그인한 회원 화면마다 안 읽은 알림 수(unreadNotiCount)를 넣어 nav 배지에 쓴다 -->
+	<interceptors>
+		<interceptor>
+			<mapping path="/**" />
+			<exclude-mapping path="/resources/**" />
+			<beans:bean class="org.mnu.controller.UnreadCountInterceptor" />
+		</interceptor>
+	</interceptors>
 	
 	
 	

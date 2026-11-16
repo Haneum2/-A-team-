@@ -17,6 +17,7 @@
 			<a href="${pageContext.request.contextPath}/stock/search">종목</a>
 			<a href="${pageContext.request.contextPath}/news">뉴스</a>
 			<a href="${pageContext.request.contextPath}/disclosure">공시</a>
+			<a href="${pageContext.request.contextPath}/notifications">알림<c:if test="${unreadNotiCount > 0}"><span class="noti-badge">${unreadNotiCount > 99 ? '99+' : unreadNotiCount}</span></c:if></a>
 			<a href="${pageContext.request.contextPath}/logout">로그아웃</a>
 		</nav>
 	</header>

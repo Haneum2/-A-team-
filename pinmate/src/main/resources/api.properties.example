@@ -7,3 +7,9 @@ dart.api.key=여기에_발급받은_키_입력
 # 키를 발급할 때 등록한 허용 IP 에서만 호출할 수 있습니다.
 toss.client.id=여기에_Client_Id_입력
 toss.client.secret=여기에_Client_Secret_입력
+
+# 알림 (선택, 생략하면 아래 기본값)
+# notify.enabled=false 로 두면 알림 스케줄러가 아무것도 보내지 않습니다. (로컬에서 여러 명이 같은 DB로 돌릴 때)
+notify.enabled=true
+# 보유 종목 급등락 알림 기준 (전일 종가 대비 ±%)
+notify.price.threshold=5
