@@ -86,6 +86,24 @@ public class NewsController {
             item.setSentiment(sentimentAnalyzer.analyze(item.getTitle()));
         }
 
+        // 감성 분포 진단 로그 (목표: 중립 60% 이하)
+        if (!allItems.isEmpty()) {
+            int posC = 0, negC = 0, neuC = 0;
+            for (NewsItem item : allItems) {
+                switch (item.getSentiment().getTag()) {
+                    case POSITIVE: posC++; break;
+                    case NEGATIVE: negC++; break;
+                    default:       neuC++; break;
+                }
+            }
+            int tot = allItems.size();
+            logger.info("감성 분포 [tab={}]: 전체{}건 호재{}건({}%) 악재{}건({}%) 중립{}건({}%)",
+                    new Object[]{tab, tot,
+                        posC, posC * 100 / tot,
+                        negC, negC * 100 / tot,
+                        neuC, neuC * 100 / tot});
+        }
+
         // 감성 필터 적용
         List<NewsItem> filtered;
         if ("positive".equals(filter)) {
